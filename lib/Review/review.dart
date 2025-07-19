@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -39,10 +40,13 @@ class _ReviewState extends State<Review> with TickerProviderStateMixin {
 
   Future<List<Map<String, dynamic>>> _fetchFilteredOrders() async {
     try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return [];
       // Build Firestore query - filter for delivered orders only
       Query<Map<String, dynamic>> query = _firestore
           .collection('Orders')
           .where('order_status', isEqualTo: 'delivered')
+          .where('salesmanID', isEqualTo: currentUser.uid)
           .orderBy('createdAt', descending: true);
 
       // Apply status filter

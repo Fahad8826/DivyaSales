@@ -58,7 +58,6 @@ class FollowupController extends GetxController {
     }
   }
 
-  
   DocumentSnapshot? lastDocument; // Add to controller
 
   Future<void> fetchLeads({bool loadMore = false}) async {

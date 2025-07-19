@@ -1,4 +1,3 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -225,6 +224,13 @@ class DetailPage extends StatelessWidget {
 
                     // Contact Information
                     _buildSectionDivider('CONTACT INFORMATION', baseFontSize),
+                    _buildInfoRow(
+                      label: 'Customer ID',
+                      value: data['customerId'] ?? 'N/A',
+                      icon: Icons.account_circle,
+                      fontSize: baseFontSize,
+                      iconSize: iconSize,
+                    ),
                     _buildInfoRow(
                       label: 'Primary Phone',
                       value: data['phone1'] ?? 'N/A',

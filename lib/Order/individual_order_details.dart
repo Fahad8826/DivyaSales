@@ -99,8 +99,6 @@ class IndividualOrderDetails extends StatelessWidget {
     );
   }
 
-
-
   Future<void> _cancelOrder(BuildContext context) async {
     try {
       if (docId == null || docId.isEmpty) {
@@ -298,6 +296,13 @@ class IndividualOrderDetails extends StatelessWidget {
 
                       // Contact Information
                       _buildSectionDivider('CONTACT INFORMATION', baseFontSize),
+                      _buildInfoRow(
+                        label: 'Customer ID',
+                        value: data['customerId'] ?? 'N/A',
+                        icon: Icons.account_circle,
+                        fontSize: baseFontSize,
+                        iconSize: iconSize,
+                      ),
                       _buildInfoRow(
                         label: 'Primary Phone',
                         value: data['phone1'] ?? 'N/A',

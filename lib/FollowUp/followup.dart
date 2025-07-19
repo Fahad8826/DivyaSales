@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -26,7 +27,7 @@ class FollowupPage extends StatelessWidget {
           children: [
             _buildSearchAndFilters(controller, size),
             _buildSummaryCards(controller, size, isTablet),
-            // Expanded(child: _buildListView(controller, size, isTablet)),
+            Expanded(child: _buildListView(controller, size, isTablet)),
           ],
         ),
       ),
@@ -57,7 +58,7 @@ class FollowupPage extends StatelessWidget {
   ) {
     final cardPadding = isTablet ? 16.0 : 10.0;
     final cardHeight = isTablet ? 70.0 : 60.0;
-
+    final currentUser = FirebaseAuth.instance.currentUser;
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: size.width * 0.04,
@@ -68,11 +69,13 @@ class FollowupPage extends StatelessWidget {
 
         final overdue = leads.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
+          if (data['salesmanID'] != currentUser?.uid) return false;
           return _isFollowUpOverdue(data['followUpDate']);
         }).length;
 
         final today = leads.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
+          if (data['salesmanID'] != currentUser?.uid) return false;
           return _isFollowUpToday(data['followUpDate']);
         }).length;
 
@@ -878,6 +881,39 @@ class FollowupPage extends StatelessWidget {
     );
   }
 
+  // Widget _buildQuickInfo(IconData icon, String text, Color color, Size size) {
+  //   final fontSize = size.width > 600 ? 12.0 : 11.0;
+
+  //   return Container(
+  //     padding: EdgeInsets.symmetric(
+  //       vertical: size.height * 0.008,
+  //       horizontal: size.width * 0.02,
+  //     ),
+  //     decoration: BoxDecoration(
+  //       color: color.withOpacity(0.08),
+  //       borderRadius: BorderRadius.circular(8),
+  //     ),
+  //     child: Row(
+  //       mainAxisSize: MainAxisSize.min,
+  //       children: [
+  //         Icon(icon, size: 14, color: color),
+  //         SizedBox(width: size.width * 0.01),
+  //         Expanded(
+  //           child: Text(
+  //             text,
+  //             style: TextStyle(
+  //               fontSize: fontSize,
+  //               color: color,
+  //               fontWeight: FontWeight.w500,
+  //             ),
+  //             overflow: TextOverflow.ellipsis,
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
   bool _isFollowUpOverdue(dynamic followUpDate) {
     if (followUpDate == null) return false;
     try {
@@ -916,102 +952,100 @@ class FollowupPage extends StatelessWidget {
   //     return false;
   //   }
   // }
- // Skip if archived
+  bool _isFollowUpToday(dynamic followUpDate, {bool isArchived = false}) {
+    if (isArchived) return false; // Skip if archived
 
-    bool _isFollowUpToday(dynamic followUpDate, {bool isArchived = false}) {
-      if (isArchived) return false; // Skip if archived
+    if (followUpDate == null) return false;
 
-      if (followUpDate == null) return false;
-      try {
-        DateTime date;
-        if (followUpDate is Timestamp) {
-          date = followUpDate.toDate();
-        } else if (followUpDate is String) {
-          date = DateTime.parse(followUpDate);
-        } else {
-          return false;
-        }
-
-        final now = DateTime.now();
-        return date.year == now.year &&
-            date.month == now.month &&
-            date.day == now.day;
-      } catch (e) {
-        print('Error checking today: $e');
+    try {
+      DateTime date;
+      if (followUpDate is Timestamp) {
+        date = followUpDate.toDate();
+      } else if (followUpDate is String) {
+        date = DateTime.parse(followUpDate);
+      } else {
         return false;
       }
-    }
 
-    Widget _buildListView(
-      FollowupController controller,
-      Size size,
-      bool isTablet,
-    ) {
-      return Obx(() {
-        final leads = controller.leads;
-
-        final filteredLeads = leads
-            .where(
-              (doc) =>
-                  controller.matchesFilters(doc.data() as Map<String, dynamic>),
-            )
-            .toList();
-        final sortedLeads = controller.sortLeadsByFollowUpDate(filteredLeads);
-
-        if (sortedLeads.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
-                const SizedBox(height: 16),
-                Text(
-                  'No leads found',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Try adjusting your search or filters',
-                  style: TextStyle(color: Colors.grey[500]),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          controller: controller.scrollController, // 👈 Use controller's scroll
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: sortedLeads.length + 1, // +1 for loading indicator
-          itemBuilder: (context, index) {
-            if (index == sortedLeads.length) {
-              return Obx(
-                () => controller.isFetchingMoreLeads.value
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    : const SizedBox.shrink(),
-              );
-            }
-
-            final lead = sortedLeads[index];
-            final data = lead.data() as Map<String, dynamic>;
-            return _buildListTile(
-              context,
-              data,
-              lead.id,
-              controller,
-              size,
-              isTablet,
-            );
-          },
-        );
-      });
+      final now = DateTime.now();
+      return date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day;
+    } catch (e) {
+      print('Error checking today: $e');
+      return false;
     }
   }
 
+  Widget _buildListView(
+    FollowupController controller,
+    Size size,
+    bool isTablet,
+  ) {
+    return Obx(() {
+      final leads = controller.leads;
+
+      final filteredLeads = leads
+          .where(
+            (doc) =>
+                controller.matchesFilters(doc.data() as Map<String, dynamic>),
+          )
+          .toList();
+      final sortedLeads = controller.sortLeadsByFollowUpDate(filteredLeads);
+
+      if (sortedLeads.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                'No leads found',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Try adjusting your search or filters',
+                style: TextStyle(color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        );
+      }
+
+      return ListView.builder(
+        controller: controller.scrollController, // 👈 Use controller's scroll
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: sortedLeads.length + 1, // +1 for loading indicator
+        itemBuilder: (context, index) {
+          if (index == sortedLeads.length) {
+            return Obx(
+              () => controller.isFetchingMoreLeads.value
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  : const SizedBox.shrink(),
+            );
+          }
+
+          final lead = sortedLeads[index];
+          final data = lead.data() as Map<String, dynamic>;
+          return _buildListTile(
+            context,
+            data,
+            lead.id,
+            controller,
+            size,
+            isTablet,
+          );
+        },
+      );
+    });
+  }
+}
